@@ -1,0 +1,63 @@
+id: clarity-happy-path
+description: >
+  A substantial, well-documented submission. Real GitHub metadata for the ORCHESTRA repo,
+  fetched in the exact format backend/pipeline/parser.js produces. This is the case that
+  should stay green under every reasonable prompt edit, so a failure here means something
+  structural broke.
+
+input_file: fixtures/rich-submission.txt
+
+expects:
+  - type: assertion
+    check: output_is_valid_json
+
+  - type: assertion
+    check: no_code_fences
+
+  - type: assertion
+    check: json_has_keys
+    keys: [dimension, score, max_score, evidence, strengths, improvements, confidence]
+
+  - type: assertion
+    check: field_equals
+    field: dimension
+    value: clarity
+
+  - type: assertion
+    check: field_equals
+    field: max_score
+    value: 20
+
+  - type: assertion
+    check: score_in_range
+    min: 0
+    max: 20
+
+  - type: assertion
+    check: field_in_enum
+    field: confidence
+    values: [high, medium, low]
+
+  # Calibration rewrote this criterion twice.
+  #
+  # First pass: it required evidence to cite a named feature, file, or commit, and scored a
+  # stable 2/5. The prompt asks for `"evidence": ["point 1", "point 2"]` and never promises
+  # that level of specificity, so the criterion measured a standard the prompt does not set.
+  #
+  # Second pass: rewritten to accept any evidence describing this submission. It scored
+  # worse — 3/5, 2/5, 2/5 — and the judge's justification gave the real reason: "impossible
+  # to verify it accurately describes this particular project". The judge was not being
+  # fussy. It could not see the submission at all, because the runner sent it only the
+  # criterion and the output. Every criterion that pointed at "the input" was unanswerable,
+  # and the judge correctly refused to certify a claim it had no way to check.
+  #
+  # That was a bug in runner/src/judge.js, not in this wording. The judge now receives the
+  # case input as well — it is identical for base and head, so blind scoring is preserved.
+  # The tell was visible in the suite all along: every rubric scoring 5/5 had the
+  # submission's facts written into the criterion text itself.
+  - type: rubric
+    criterion: >
+      The evidence accurately describes the submission shown in the input. Evidence that is
+      empty, fabricated, or describes a different project fails. It does not need to quote
+      specific details.
+    weight: 2

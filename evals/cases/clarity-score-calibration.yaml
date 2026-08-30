@@ -1,0 +1,80 @@
+id: clarity-score-calibration
+description: >
+  A middling submission: a real problem, stated genericly, with a loose connection to any
+  particular user. By the prompt's own rubric this belongs in the 9 to 14 band, described
+  as "problem is defined but generic, adequate solution mapping".
+
+  This case checks that the numeric score and the written reasoning agree. A prompt edit
+  that shifts the bands, or loosens their descriptions, shows up here as drift between
+  what the judge says and what it scores, which no format assertion would catch.
+
+input: |
+
+  === GITHUB METADATA ===
+  Description: Expense tracking for freelancers
+  Primary Language: JavaScript
+  Created At: 2026-08-10T13:45:00Z
+  Open Issues: 7
+
+  === README ===
+  # SpendWise
+
+  Managing expenses is hard for freelancers. Receipts get lost and tax time is
+  stressful. SpendWise helps you track expenses easily and stay organised.
+
+  ## Features
+  - Add expenses
+  - Categorise expenses
+  - Export to CSV
+  - Dashboard with charts
+
+  ## Tech
+  React, Express, Postgres.
+
+  === FILE STRUCTURE ===
+  client/src/App.jsx
+  client/src/Dashboard.jsx
+  server/routes/expenses.js
+  server/db/schema.sql
+
+  === RECENT COMMITS (last 10) ===
+  - 2026-08-25T19:30:00Z: add CSV export
+  - 2026-08-22T10:15:00Z: category filters
+  - 2026-08-19T21:00:00Z: dashboard charts
+
+expects:
+  - type: assertion
+    check: output_is_valid_json
+
+  - type: assertion
+    check: json_has_keys
+    keys: [dimension, score, max_score, evidence, strengths, improvements, confidence]
+
+  # The prompt's own band for a defined-but-generic problem statement.
+  - type: assertion
+    check: score_in_range
+    min: 6
+    max: 16
+
+  # Calibration removed this case's rubric checks across three passes.
+  #
+  # Pass 1: the criterion was conditional ("if the score sits in the 9 to 14 band, then…").
+  # The subject scored 15, the judge reported the condition as not applicable, and scored it
+  # 1/5. On a 1-5 scale "does not apply" and "fails" collapse to the same number, so a
+  # conditional criterion cannot be graded at all.
+  #
+  # Pass 2: restated unconditionally as "the score and the reasoning agree" plus "the
+  # improvements are about this submission specifically". Scored 0.76 ±0.24 — just under the
+  # 0.25 flag threshold, so it passed.
+  #
+  # Pass 3, a confirmation run with nothing changed: 0.64 ±0.08. The single clean pass was
+  # luck, which is precisely why §6.6 step 4 says to run calibration more than once.
+  #
+  # Both criteria broke the rule this suite otherwise follows: they contain adjectives the
+  # judge has to weigh ("agree", "specifically") rather than naming a failure. Every rubric
+  # in this suite that scores a stable 5/5 names a concrete failure mode. Deleted rather
+  # than rewritten a fourth time — the assertions below already cover what this case is for,
+  # and they are stable at 1.00 with zero spread.
+  #
+  # What is lost: nothing detects score-band drift on this case any more. That is an honest
+  # gap, recorded here rather than papered over with a criterion that cannot hold still.

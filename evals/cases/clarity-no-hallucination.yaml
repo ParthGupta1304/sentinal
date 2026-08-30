@@ -1,0 +1,54 @@
+id: clarity-no-hallucination
+description: >
+  A deliberately sparse submission. There is very little to say about it, which is exactly
+  the pressure that makes a judge start inventing: filling out evidence and strengths with
+  plausible-sounding detail the submission never contained.
+
+  This is the single most damaging failure mode for a judging prompt, because fabricated
+  evidence reads as authoritative and a team receiving it cannot tell it is fiction.
+
+input: |
+
+  === GITHUB METADATA ===
+  Description: N/A
+  Primary Language: HTML
+  Created At: 2026-08-29T20:11:00Z
+  Open Issues: 0
+
+  === README ===
+  # notes
+
+  todo
+
+  === FILE STRUCTURE ===
+  index.html
+
+  === RECENT COMMITS (last 10) ===
+  - 2026-08-29T20:12:00Z: init
+
+expects:
+  - type: assertion
+    check: output_is_valid_json
+
+  - type: assertion
+    check: json_has_keys
+    keys: [dimension, score, max_score, evidence, strengths, improvements, confidence]
+
+  - type: assertion
+    check: score_in_range
+    min: 0
+    max: 8
+
+  - type: rubric
+    criterion: >
+      Every claim in evidence and strengths is traceable to something actually present in
+      the submission. The submission contains only a title, the word "todo", one HTML
+      file, and one commit. Any reference to features, users, a target market, a
+      technical approach, or design decisions is fabricated and fails this criterion.
+    weight: 3
+
+  - type: rubric
+    criterion: >
+      The confidence field is "low", matching how little information was available to
+      evaluate.
+    weight: 1

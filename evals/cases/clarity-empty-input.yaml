@@ -1,0 +1,34 @@
+id: clarity-empty-input
+description: >
+  Nothing to evaluate. The prompt makes an explicit promise for this situation: score 0
+  and put a specific sentence into improvements. That is a behaviour the prompt commits
+  to in writing, which makes it fair to assert rather than to judge (§6.6 step 3).
+
+  This is the highest-value case in the suite. An edit that drops the insufficient-
+  information instruction leaves the judge free to invent a low-but-nonzero score, which
+  looks entirely reasonable in isolation and silently corrupts every downstream total,
+  because chiefJudge keys its confidence tier off whether any judge returned a fallback.
+
+input: ""
+
+expects:
+  - type: assertion
+    check: output_is_valid_json
+
+  - type: assertion
+    check: no_code_fences
+
+  - type: assertion
+    check: field_equals
+    field: score
+    value: 0
+
+  - type: assertion
+    check: array_field_contains
+    field: improvements
+    substring: "No clarity-relevant assets were provided"
+
+  - type: assertion
+    check: field_equals
+    field: dimension
+    value: clarity

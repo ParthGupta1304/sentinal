@@ -1,0 +1,47 @@
+id: clarity-oversized-input
+description: >
+  A very long file structure, which is what parseGithub produces for any large monorepo
+  since it lists every path recursively. Tests that the judge does not run away, echo
+  the input back, or drop its output contract under length pressure.
+
+  Built by repetition rather than pasting thousands of lines into this file.
+
+input_repeat:
+  prefix: |
+
+    === GITHUB METADATA ===
+    Description: Monorepo for an internal platform
+    Primary Language: TypeScript
+    Created At: 2026-01-05T09:00:00Z
+    Open Issues: 143
+
+    === README ===
+    # Platform
+
+    Internal tooling monorepo. See individual package READMEs.
+
+    === FILE STRUCTURE ===
+  line: "packages/service-{i}/src/index.ts"
+  count: 900
+
+expects:
+  - type: assertion
+    check: output_is_valid_json
+
+  - type: assertion
+    check: no_code_fences
+
+  - type: assertion
+    check: json_has_keys
+    keys: [dimension, score, max_score, evidence, strengths, improvements, confidence]
+
+  - type: assertion
+    check: score_in_range
+    min: 0
+    max: 20
+
+  # A judge that starts echoing the file listing back blows past this immediately.
+  - type: assertion
+    check: output_length_within
+    min: 80
+    max: 6000

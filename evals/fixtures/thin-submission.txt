@@ -1,0 +1,553 @@
+
+=== GITHUB METADATA ===
+Description: N/A
+Primary Language: JavaScript
+Created At: 2026-02-27T07:26:48Z
+Open Issues: 0
+
+=== LANGUAGE BREAKDOWN ===
+JavaScript: 146997 bytes, TypeScript: 94730 bytes, Python: 72006 bytes, CSS: 20819 bytes, HTML: 10432 bytes, PLpgSQL: 1745 bytes
+
+=== README ===
+<div align="center">
+
+# 🛡️ CLARIX — Truth Engine
+
+### **Verify Anything, Instantly.**
+
+An advanced AI-powered credibility engine that fact-checks claims, detects deepfake images, analyzes media bias, and scans full web pages for misinformation — in real-time.
+
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
+[![Python](https://img.shields.io/badge/Python-3.11+-yellow.svg)](https://python.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black.svg)](https://nextjs.org/)
+[![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4.1-purple.svg)](https://openai.com/)
+
+</div>
+
+---
+
+<div align="center">
+
+![CLARIX Hero](docs/screenshots/hero-landing.png)
+
+</div>
+
+---
+
+## 📋 Table of Contents
+
+- [Overview](#-overview)
+- [Key Features](#-key-features)
+- [Architecture](#-architecture)
+- [Web Dashboard](#-web-dashboard)
+- [Browser Extension (USP)](#-browser-extension--our-usp)
+- [Tech Stack](#-tech-stack)
+- [Getting Started](#-getting-started)
+- [API Reference](#-api-reference)
+- [Future Scope](#-future-scope--roadmap)
+- [Contributing](#-contributing)
+- [License](#-license)
+
+---
+
+## 🌟 Overview
+
+**CLARIX** (Credibility, Legitimacy, and Authenticity Recognition & Intelligence eXtended) is an end-to-end misinformation detection platform that combines:
+
+- 🧠 **LLM-powered claim extraction & fact-checking** (GPT-4.1)
+- 🤖 **HuggingFace ML model** for fake news classification
+- 🖼️ **EfficientNet-B0 deepfake detection** for image authenticity
+- 📊 **Multi-signal credibility scoring** (Fact-Check, Source Credibility, Sentiment/Bias)
+- 🔌 **Browser extension** for real-time verification while browsing
+
+CLARIX doesn't just flag content as fake — it provides a **detailed trust score (0-100)**, explains *why* content is misleading, and cites reference sources so users can verify independently.
+
+---
+
+## ✨ Key Features
+
+| Feature | Description |
+|---|---|
+| 📝 **Text/Claim Analysis** | Paste any claim or article text → get instant credibility assessment |
+| 🖼️ **Deepfake Detection** | Upload images to detect AI-generated/manipulated media |
+| 🌐 **Full Page Scanning** | Enter any URL → CLARIX scrapes and analyzes the entire page |
+| 📊 **Trust Score (0-100)** | Multi-dimensional scoring with Fact-Check, Source Credibility, and Bias breakdown |
+| 🧩 **Browser Extension** | One-click verification directly in your browser — no tab switching needed |
+| 📈 **Live Dashboard** | Real-time stats, analysis history, and activity tracking |
+| 🔍 **RAG Pipeline** | Retrieval-Augmented Generation cross-references claims against trusted sources |
+| ⚡ **Async Analysis** | Queue-based processing for non-blocking URL analysis |
+
+---
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        CLARIX Platform                         │
+├─────────────────┬──────────────────┬────────────────────────────┤
+│                 │                  │                            │
+│   Next.js       │   Express.js     │   FastAPI                  │
+│   Frontend      │   Backend        │   Python Engine            │
+│   (Port 3001)   │   (Port 3000)    │   (Port 8000)              │
+│                 │                  │                            │
+│  ┌───────────┐  │  ┌────────────┐  │  ┌──────────────────────┐  │
+│  │ Dashboard │──┼─▶│ API Server │──┼─▶│ HuggingFace Model    │  │
+│  │ Analyzer  │  │  │ LLM Svc    │  │  │ (Fake News Detector) │  │
+│  │ Stats     │  │  │ ML Svc     │  │  │                      │  │
+│  └───────────┘  │  │ RAG Svc    │  │  │ EfficientNet-B0      │  │
+│                 │  │ Caching    │  │  │ (Deepfake Detector)  │  │
+│  ┌───────────┐  │  └─────┬──────┘  │  │                      │  │
+│  │ Extension │──┼────────┘         │  │ GPT-4.1 Pipeline     │  │
+│  │ (Popup)   │  │                  │  │ (Claim Verification) │  │
+│  └───────────┘  │  ┌────────────┐  │  └──────────────────────┘  │
+│                 │  │ Neon DB    │  │                            │
+│                 │  │ (Postgres) │  │                            │
+│                 │  └────────────┘  │                            │
+└─────────────────┴──────────────────┴────────────────────────────┘
+```
+
+---
+
+## 🖥️ Web Dashboard
+
+The CLARIX web dashboard provides a **premium, dark-themed interface** with real-time particle animations and glassmorphism cards.
+
+### Landing Page
+
+<div align="center">
+
+![CLARIX Landing](docs/screenshots/hero-landing.png)
+
+*Sleek landing page with animated particle background and "Verify Anything, Instantly" tagline*
+
+</div>
+
+### Analyzer Dashboard
+
+<div align="center">
+
+![Analyzer Dashboard](docs/screenshots/analyzer-dashboard.png)
+
+*Dashboard with Text/Claim input, Quick Stats (live from database), and Recent Activity feed*
+
+</div>
+
+### Analysis Results
+
+<div align="center">
+
+![Analysis Results](docs/screenshots/analysis-results.png)
+
+*Full analysis result showing Trust Score ring (15/100), "Misleading" verdict, Signal Breakdown bars (Fact-Check, Source Credibility, Sentiment/Bias), and detailed AI-generated explanation*
+
+</div>
+
+### Image / Deepfake Detection
+
+<div align="center">
+
+![Image Analysis](docs/screenshots/image-analysis.png)
+
+*Image upload with drag-and-drop zone and URL input — powered by EfficientNet-B0 deepfake detection model*
+
+</div>
+
+---
+
+## 🧩 Browser Extension — Our USP
+
+> **The CLARIX Browser Extension is the heart of the platform.** While dashboards are useful, the real power lies in verifying content *while you browse* — without switching tabs, copy-pasting text, or disrupting your workflow.
+
+### Why This Matters
+
+Most fact-checking tools require you to **leave the page**, paste content into a separate website, and wait for results. CLARIX brings the verification engine **directly into your browser toolbar**, making credibility assessment as natural as clicking a bookmark.
+
+### Extension Popup — Clean & Focused
+
+<div align="center">
+
+![Extension Popup](docs/screenshots/extension-popup.png)
+
+*Compact popup with three modes: Text/Claim verification, Image/Media analysis, and Full Page scanning*
+
+</div>
+
+### Extension Analysis — Instant Results
+
+<div align="center">
+
+![Extension Results](docs/screenshots/extension-results.png)
+
+*Real analysis result inside the extension popup — Trust Score of 5, "Likely Misleading" verdict with full Signal Breakdown and AI explanation for the claim "NASA confirms moon is made of cheese"*
+
+</div>
+
+### Extension Features
+
+| Feature | How It Works |
+|---|---|
+| 📋 **Text Analysis** | Paste or type any claim → instant credibility check |
+| ✅ **Use Selection** | Highlight text on any web page → click "Use Selection" → analyze |
+| 🖼️ **Image Check** | Upload or paste image URL → deepfake detection |
+| 🌐 **Full Page Scan** | Click "Scan Full Page" → CLARIX analyzes the entire page you're on |
+| 🔗 **Dashboard Link** | One-click to open the full web dashboard for deeper analysis |
+
+### How to Install the Extension
+
+1. Open `chrome://extensions` (or `brave://extensions` / `edge://extensions`)
+2. Enable **Developer Mode** (toggle in top-right)
+3. Click **"Load unpacked"**
+4. Select the `extension/` folder from this repository
+5. Pin the **Clarix** icon in your toolbar
+
+> **Works with:** Chrome, Brave, Edge, and any Chromium-based browser.
+
+---
+
+## 🛠️ Tech Stack
+
+### Frontend
+| Technology | Purpose |
+|---|---|
+| **Next.js 16** (Turbopack) | React framework with server-side rendering |
+| **Tailwind CSS** | Utility-first styling |
+| **Radix UI** | Accessible component primitives |
+| **Framer Motion** | Scroll-reveal and micro-animations |
+| **Lucide React** | Icon library |
+
+### Backend (Node.js)
+| Technology | Purpose |
+|---|---|
+| **Express.js** | REST API server |
+| **Prisma ORM** | Type-safe database queries |
+| **OpenAI SDK** | GPT-4.1 for claim extraction, verification, and summarization |
+| **Multer** | Image file upload handling |
+| **Bull** | Job queue for async analysis (optional, Redis-backed) |
+| **Joi** | Request validation |
+
+### Python Engine
+| Technology | Purpose |
+|---|---|
+| **FastAPI** | High-performance async API |
+| **Transformers** | HuggingFace fake news detection model |
+| **PyTorch** | Deep learning inference |
+| **EfficientNet-B0** | Deepfake image classification |
+| **Pydantic** | Schema validation |
+
+### Infrastructure
+| Technology | Purpose |
+|---|---|
+| **Neon** (PostgreSQL) | Serverless database |
+| **Supabase** | pgvector for RAG embeddings (optional) |
+| **Redis** | Caching & job queues (optional, falls back to in-memory) |
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- **Node.js** ≥ 18
+- **Python** ≥ 3.11
+- **npm** ≥ 9
+- An **OpenAI API Key** ([get one here](https://platform.openai.com/api-keys))
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/ParthGupta1304/CLARIX.git
+cd CLARIX
+```
+
+### 2. Configure Environment Variables
+
+**Server backend** (`server/.env`):
+```bash
+cp server/.env.example server/.env
+# Edit server/.env and add your keys:
+#   OPENAI_API_KEY="sk-your-key-here"
+#   DATABASE_URL="your-neon-postgres-url"
+```
+
+**Python engine** (`.env` in project root):
+```bash
+# Create .env in project root
+OPENAI_API_KEY=sk-your-key-here
+OPENAI_MODEL=gpt-4.1-mini
+LLM_PROVIDER=openai
+HOST=0.0.0.0
+PORT=8000
+LOG_LEVEL=info
+```
+
+### 3. Install Dependencies
+
+```bash
+# Node.js backend
+cd server && npm install && npx prisma generate && npx prisma db push && cd ..
+
+# Next.js frontend
+cd frontend && npm install && cd ..
+
+# Python engine
+pip install -r requirements.txt
+```
+
+### 4. Start All Services
+
+```bash
+# Terminal 1 — Backend API (port 3000)
+cd server && npm run dev
+
+# Terminal 2 — Frontend dashboard (port 3001)
+cd frontend && PORT=3001 npm run dev
+
+# Terminal 3 — Python AI engine (port 8000)
+python main.py
+```
+
+### 5. Load the Browser Extension
+
+1. Go to `chrome://extensions`
+2. Enable **Developer Mode**
+3. Click **Load unpacked** → select the `extension/` folder
+4. Pin the Clarix icon 📌
+
+... [truncated for length]
+
+=== FILE STRUCTURE ===
+.gitignore
+README.md
+__pycache__
+__pycache__/config.cpython-310.pyc
+__pycache__/config.cpython-313.pyc
+__pycache__/main.cpython-310.pyc
+__pycache__/main.cpython-313.pyc
+config.py
+docs
+docs/screenshots
+docs/screenshots/analysis-results.png
+docs/screenshots/analyzer-dashboard.png
+docs/screenshots/extension-popup.png
+docs/screenshots/extension-results.png
+docs/screenshots/hero-landing.png
+docs/screenshots/image-analysis.png
+engine
+engine/__init__.py
+engine/__pycache__
+engine/__pycache__/__init__.cpython-310.pyc
+engine/__pycache__/__init__.cpython-313.pyc
+engine/__pycache__/bias_analyzer.cpython-310.pyc
+engine/__pycache__/bias_analyzer.cpython-313.pyc
+engine/__pycache__/claim_extractor.cpython-310.pyc
+engine/__pycache__/claim_extractor.cpython-313.pyc
+engine/__pycache__/claim_verifier.cpython-310.pyc
+engine/__pycache__/claim_verifier.cpython-313.pyc
+engine/__pycache__/deepfake_detector.cpython-313.pyc
+engine/__pycache__/guidance.cpython-310.pyc
+engine/__pycache__/guidance.cpython-313.pyc
+engine/__pycache__/heuristics.cpython-310.pyc
+engine/__pycache__/heuristics.cpython-313.pyc
+engine/__pycache__/pipeline.cpython-310.pyc
+engine/__pycache__/pipeline.cpython-313.pyc
+engine/__pycache__/scorer.cpython-310.pyc
+engine/__pycache__/scorer.cpython-313.pyc
+engine/__pycache__/summarizer.cpython-310.pyc
+engine/__pycache__/summarizer.cpython-313.pyc
+engine/__pycache__/verdict.cpython-310.pyc
+engine/__pycache__/verdict.cpython-313.pyc
+engine/bias_analyzer.py
+engine/claim_extractor.py
+engine/claim_verifier.py
+engine/deepfake_detector.py
+engine/guidance.py
+engine/heuristics.py
+engine/pipeline.py
+engine/scorer.py
+engine/summarizer.py
+engine/verdict.py
+extension
+extension/background.js
+extension/content.css
+extension/content.js
+extension/icons
+extension/icons/icon128.png
+extension/icons/icon16.png
+extension/icons/icon48.png
+extension/manifest.json
+extension/popup.css
+extension/popup.html
+extension/popup.js
+frontend
+frontend/.gitignore
+frontend/README.md
+frontend/components.json
+frontend/eslint.config.mjs
+frontend/next.config.ts
+frontend/package-lock.json
+frontend/package.json
+frontend/postcss.config.mjs
+frontend/public
+frontend/public/file.svg
+frontend/public/globe.svg
+frontend/public/next.svg
+frontend/public/vercel.svg
+frontend/public/window.svg
+frontend/src
+frontend/src/app
+frontend/src/app/favicon.ico
+frontend/src/app/globals.css
+frontend/src/app/layout.tsx
+frontend/src/app/page.tsx
+frontend/src/components
+frontend/src/components/ui
+frontend/src/components/ui/avatar.tsx
+frontend/src/components/ui/badge.tsx
+frontend/src/components/ui/bg-pattern.tsx
+frontend/src/components/ui/button.tsx
+frontend/src/components/ui/card.tsx
+frontend/src/components/ui/hero-minimalism.tsx
+frontend/src/components/ui/input.tsx
+frontend/src/components/ui/progress.tsx
+frontend/src/components/ui/scroll-area.tsx
+frontend/src/components/ui/scroll-reveal.tsx
+frontend/src/components/ui/separator.tsx
+frontend/src/components/ui/sheet.tsx
+frontend/src/components/ui/tabs.tsx
+frontend/src/components/ui/textarea.tsx
+frontend/src/components/ui/tooltip.tsx
+frontend/src/lib
+frontend/src/lib/utils.ts
+frontend/tsconfig.json
+image_model
+image_model/deepfake_model.pth
+main.py
+node-integration
+node-integration/README.md
+node-integration/analysisMapper.ts
+node-integration/analysisQueueWorker.ts
+node-integration/analyzeRoutes.ts
+node-integration/clarixEngineClient.ts
+prompts
+prompts/__init__.py
+prompts/__pycache__
+prompts/__pycache__/__init__.cpython-310.pyc
+prompts/__pycache__/__init__.cpython-313.pyc
+prompts/__pycache__/system_prompt.cpython-310.pyc
+prompts/__pycache__/system_prompt.cpython-313.pyc
+prompts/system_prompt.py
+pyproject.toml
+render.yaml
+requirements.txt
+schemas
+schemas/__init__.py
+schemas/__pycache__
+schemas/__pycache__/__init__.cpython-310.pyc
+schemas/__pycache__/__init__.cpython-313.pyc
+schemas/__pycache__/request.cpython-310.pyc
+schemas/__pycache__/request.cpython-313.pyc
+schemas/__pycache__/response.cpython-310.pyc
+schemas/__pycache__/response.cpython-313.pyc
+schemas/request.py
+schemas/response.py
+server
+server/.agents
+server/.agents/skills
+server/.agents/skills/neon-postgres
+server/.agents/skills/neon-postgres/SKILL.md
+server/.claude
+server/.claude/skills
+server/.claude/skills/neon-postgres
+server/.claude/skills/neon-postgres/SKILL.md
+server/.gitignore
+server/README.md
+server/nodemon.json
+server/package-lock.json
+server/package.json
+server/prisma
+server/prisma/schema.prisma
+server/skills-lock.json
+server/src
+server/src/app.js
+server/src/config
+server/src/config/index.js
+server/src/controllers
+server/src/controllers/analyze.controller.js
+server/src/controllers/feed.controller.js
+server/src/controllers/index.js
+server/src/controllers/session.controller.js
+server/src/index.js
+server/src/lib
+server/src/lib/prisma.js
+server/src/lib/redis.js
+server/src/middleware
+server/src/middleware/auth.middleware.js
+server/src/middleware/error.middleware.js
+server/src/middleware/index.js
+server/src/middleware/rate-limit.middleware.js
+server/src/queues
+server/src/queues/index.js
+server/src/queues/workers.js
+server/src/routes
+server/src/routes/admin.routes.js
+server/src/routes/analyze.routes.js
+server/src/routes/feed.routes.js
+server/src/routes/feedback.routes.js
+server/src/routes/index.js
+server/src/routes/session.routes.js
+server/src/services
+server/src/services/cache.service.js
+server/src/services/content-parser.service.js
+server/src/services/credibility.service.js
+server/src/services/feed.service.js
+server/src/services/index.js
+server/src/services/llm.service.js
+server/src/services/ml.service.js
+server/src/services/rag.service.js
+server/src/utils
+server/src/utils/logger.js
+server/src/validators
+server/src/validators/index.js
+server/supabase
+server/supabase/setup.sql
+services
+services/__init__.py
+services/__pycache__
+services/__pycache__/__init__.cpython-310.pyc
+services/__pycache__/__init__.cpython-313.pyc
+services/__pycache__/llm_service.cpython-310.pyc
+services/__pycache__/llm_service.cpython-313.pyc
+services/llm_service.py
+tests
+tests/__init__.py
+tests/__pycache__
+tests/__pycache__/__init__.cpython-310.pyc
+tests/__pycache__/__init__.cpython-313.pyc
+tests/__pycache__/test_api.cpython-310-pytest-8.3.4.pyc
+tests/__pycache__/test_api.cpython-313-pytest-8.3.4.pyc
+tests/__pycache__/test_engine.cpython-310-pytest-8.3.4.pyc
+tests/__pycache__/test_engine.cpython-313-pytest-8.3.4.pyc
+tests/test_api.py
+tests/test_engine.py
+
+=== RECENT COMMITS (last 10) ===
+- 2026-04-20T16:50:24Z: env api fix
+- 2026-04-20T16:33:17Z: cors fixed
+- 2026-04-20T13:07:30Z: bug fix v2
+- 2026-04-20T12:37:33Z: fixing bug v1
+- 2026-04-20T12:09:33Z: feat: add verbose progress logging to credibility pipeline for better observability on Render
+- 2026-04-20T12:03:48Z: api update on frontend
+- 2026-04-20T11:49:00Z: render changes
+- 2026-04-20T11:03:30Z: feat: integrate Bitmind cloud API for deepfake detection
+
+- Add DEEPFAKE_PROVIDER config (bitmind | local)
+- Add BITMIND_API_KEY and BITMIND_API_URL settings to config.py
+- Rewrite engine/deepfake_detector.py to route through Bitmind API
+  when DEEPFAKE_PROVIDER=bitmind; local EfficientNet-B0 model kept
+  as fallback via DEEPFAKE_PROVIDER=local
+- Add DEEPFAKE_PROVIDER and BITMIND_API_KEY (sync:false) to render.yaml
+- No breaking changes to /detect-deepfake API contract
+- 2026-04-20T10:46:33Z: minor changes
+- 2026-04-11T17:20:56Z: api changed to groq
+

@@ -1,0 +1,47 @@
+# Sentinel eval suite for ORCHESTRA's clarity judge.
+#
+# Target: backend/prompts/clarity-judge.md in ParthGupta1304/ORCHESTRA.
+#
+# Composition is deliberate (§6.2, §6.5). Six assertion-led cases and four rubric-led
+# ones. Assertions never produce a false positive and catch the most common real-world
+# prompt regression, which is a broken output format. But assertions have a noise floor
+# of zero by construction, so a suite made only of them would render every noise band as
+# a zero-width strip and collapse the regressed/inconclusive distinction that makes the
+# gate trustworthy. The rubric cases are what generate observable spread.
+#
+# Pairwise preference is not built. §6.4 makes it conditional on 6.2 and 6.3 being done
+# early, and they were not.
+
+target:
+  repo: ParthGupta1304/ORCHESTRA
+  prompt: backend/prompts/clarity-judge.md
+
+subject:
+  # Must match what the real judge uses, or the suite is testing a different system.
+  # See backend/agents/clarityJudge.js.
+  model: gpt-4o-mini
+  temperature: 0.2
+
+judge:
+  # A different family from the subject, per §6.3. A model grading its own output
+  # measures self-consistency, not quality.
+  model: claude-sonnet-5
+  # No temperature: claude-sonnet-5 removed the sampling parameters and returns 400 on a
+  # non-default value. Stability comes from disabling thinking instead — see runner/src/judge.js.
+  thinking: disabled
+
+# Repeats per case per version (§6.5 step 1). N=3 is the working default and what the
+# noise floor is computed from. Drop to 1 while developing to save spend.
+runs_per_case: 3
+
+cases:
+  - clarity-happy-path
+  - clarity-thin-submission
+  - clarity-empty-input
+  - clarity-prompt-injection
+  - clarity-truncated-deck
+  - clarity-oversized-input
+  - clarity-flags-absent-problem
+  - clarity-no-hallucination
+  - clarity-evidence-grounded
+  - clarity-score-calibration

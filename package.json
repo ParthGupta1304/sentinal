@@ -1,0 +1,21 @@
+{
+  "name": "sentinel",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "description": "A prompt regression gate. Catches prompt regressions in a pull request before they merge.",
+  "scripts": {
+    "test": "node --test runner/tests/*.test.js",
+    "setup": "node agent/setup.mjs",
+    "smoke": "node agent/smoke.mjs",
+    "harvest": "node evals/harvest.mjs",
+    "calibrate": "node runner/src/calibrate.mjs",
+    "compare": "node runner/src/compare.mjs",
+    "dashboard": "node web/server.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.122.0",
+    "js-yaml": "^4.1.0",
+    "openai": "^4.104.0"
+  }
+}

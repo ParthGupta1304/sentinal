@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sentinel</title>
+<style>
+  /* §8.1 — a measuring instrument, not a terminal. Four values plus paper. */
+  :root {
+    --paper:   #FBFAF7;
+    --ink:     #191A17;
+    --graphite:#6E7069;
+    --oxide:   #A8452B;  /* regression — the only alarming colour on the page */
+    --moss:    #3F5D34;  /* improvement */
+    --rule:    color-mix(in srgb, var(--graphite) 30%, transparent);
+    --band:    color-mix(in srgb, var(--graphite) 16%, transparent);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #141513; --ink: #EDEBE4;
+      --oxide: #C9603F; --moss: #6E9159;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font: 400 15px/1.5 "Inter Tight", Inter, ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding: 40px 28px 80px;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; }
+  .mono { font-family: "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace; }
+
+  header { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+  h1 { font-size: 19px; font-weight: 500; margin: 0; letter-spacing: -0.01em; }
+  .meta { font-size: 13px; color: var(--graphite); }
+  .meta .mono { font-size: 12px; }
+
+  hr { border: 0; border-top: 0.5px solid var(--rule); margin: 20px 0; }
+
+  .verdict { font-size: 28px; font-weight: 400; letter-spacing: -0.02em; margin: 4px 0 2px; }
+  .tally { font-size: 13px; color: var(--graphite); display: flex; gap: 20px; flex-wrap: wrap; }
+  .tally b { font-weight: 500; color: var(--ink); }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    font-size: 13px; font-weight: 400; color: var(--graphite); text-align: left;
+    padding: 0 0 8px; border-bottom: 0.5px solid var(--rule); white-space: nowrap;
+  }
+  thead th.num { text-align: right; padding-right: 22px; }
+  thead th.floor { text-align: right; padding-right: 22px; }
+  tbody tr { border-bottom: 0.5px solid var(--rule); }
+  tbody td { padding: 11px 0; vertical-align: middle; }
+  td.case { font-size: 13px; }
+  td.num { text-align: right; white-space: nowrap; font-size: 13px; padding-right: 22px; }
+  td.floor { text-align: right; white-space: nowrap; font-size: 13px; color: var(--graphite); padding-right: 22px; }
+  td.band { width: 190px; padding-left: 22px; padding-right: 22px; }
+  td.outcome { width: 104px; font-size: 13px; }
+
+  .row { cursor: pointer; }
+  .row:hover td.case { text-decoration: underline; text-underline-offset: 3px; }
+  .row:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+
+  .regressed   { color: var(--oxide); }
+  .improved    { color: var(--moss); }
+  /* Inconclusive is deliberately quiet. That is the whole point of the distinction. */
+  .inconclusive, .flat { color: var(--graphite); }
+
+  /* The noise band. A pale strip drawn to the base version's observed spread, a tick at
+     each median. If the head tick sits inside the band, the change did not escape the
+     noise and the row reads grey. Position carries the signal as well as colour, so the
+     chart is not colour-only. */
+  .plot { position: relative; height: 22px; }
+  .axis { position: absolute; left: 0; right: 0; top: 11px; height: 0.5px; background: var(--rule); }
+  .noise { position: absolute; top: 4px; height: 14px; background: var(--band); }
+  /* A zero-width band still needs to read as a measured quantity rather than as nothing.
+     Bracket it so the eye sees a floor of zero, not a missing floor. */
+  .noise.zero { border-left: 0.5px solid var(--graphite); border-right: 0.5px solid var(--graphite); }
+  .tick { position: absolute; top: 3px; width: 1.5px; height: 16px; background: var(--ink); }
+  .tick.head { width: 2px; height: 20px; top: 1px; }
+  .tick.head.regressed { background: var(--oxide); }
+  .tick.head.improved  { background: var(--moss); }
+  .tick.head.inconclusive, .tick.head.flat { background: var(--graphite); }
+
+  .detail td { padding: 0 0 18px; }
+  .detailbox { border-left: 2px solid var(--rule); padding: 2px 0 2px 16px; }
+  .detailbox h3 { font-size: 13px; font-weight: 500; margin: 12px 0 6px; }
+  .crit { font-size: 13px; color: var(--graphite); margin: 0 0 10px; max-width: 62ch; }
+  .outputs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 720px) { .outputs { grid-template-columns: 1fr; } }
+  pre {
+    margin: 0; padding: 10px 12px; background: color-mix(in srgb, var(--graphite) 8%, transparent);
+    font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12px; line-height: 1.45;
+    overflow-x: auto; max-height: 300px; white-space: pre-wrap; word-break: break-word;
+  }
+  .checks { font-size: 12px; }
+  .checks div { padding: 2px 0; }
+  .fail { color: var(--oxide); }
+  .pass { color: var(--graphite); }
+
+  .gate { margin-top: 32px; padding: 18px 20px; border: 0.5px solid var(--rule); }
+  .gate p { margin: 0 0 14px; font-size: 15px; }
+  .gate .sub { font-size: 13px; color: var(--graphite); margin-bottom: 16px; }
+  button {
+    font: inherit; font-size: 13px; padding: 7px 14px; border-radius: 4px;
+    border: 0.5px solid var(--rule); background: transparent; color: var(--ink); cursor: pointer;
+  }
+  button.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  button[disabled] { opacity: 0.45; cursor: not-allowed; }
+
+  .empty { color: var(--graphite); font-size: 15px; padding: 40px 0; }
+
+  /* One orchestrated moment: rows settle in as they are read, staggered by arrival. */
+  @keyframes settle { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  tbody tr.row { animation: settle 120ms ease-out backwards; }
+  @media (prefers-reduced-motion: reduce) { tbody tr.row { animation: none; } }
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><div class="empty">Loading…</div></div>
+
+<script type="module">
+const app = document.getElementById('app');
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const fmt = (n) => Number(n).toFixed(2);
+
+// A case takes the most serious outcome across its check kinds.
+const RANK = { regressed: 0, inconclusive: 1, flat: 2, improved: 3 };
+const worstCheck = (checks) => checks.slice().sort((a, b) => RANK[a.outcome] - RANK[b.outcome])[0];
+
+/**
+ * Draw one case's noise band.
+ *
+ * The band is the base version's observed spread, drawn to scale. Ticks mark the two
+ * medians. A head tick inside the band means the change did not escape the noise.
+ *
+ * When the noise floor is zero — which is every assertion, by construction — the band has
+ * no width to draw. That is information, not a gap: it says the check is deterministic and
+ * the verdict is not luck. It renders as a hairline so the row still reads as measured
+ * rather than empty.
+ */
+function band(check) {
+  const { baseMedian, headMedian, noiseFloor, outcome } = check;
+  const lo = Math.min(baseMedian - noiseFloor, headMedian, baseMedian) - 0.08;
+  const hi = Math.max(baseMedian + noiseFloor, headMedian, baseMedian) + 0.08;
+  const span = Math.max(hi - lo, 0.001);
+  const pct = (v) => `${((v - lo) / span) * 100}%`;
+
+  const zero = noiseFloor === 0;
+  const bandLeft = pct(baseMedian - noiseFloor);
+  const bandW = zero ? '2px' : `${(2 * noiseFloor / span) * 100}%`;
+
+  const reading = zero
+    ? `noise floor zero, so this verdict is decisive`
+    : `head tick ${Math.abs(headMedian - baseMedian) > noiseFloor ? 'outside' : 'inside'} the noise band`;
+
+  return `<div class="plot" role="img" aria-label="base median ${fmt(baseMedian)}, head median ${fmt(headMedian)}, noise floor ${fmt(noiseFloor)}. ${reading}. ${outcome}.">
+    <div class="axis"></div>
+    <div class="noise${zero ? ' zero' : ''}" style="left:${bandLeft};width:${bandW}"></div>
+    <div class="tick base" style="left:${pct(baseMedian)}"></div>
+    <div class="tick head ${outcome}" style="left:${pct(headMedian)}"></div>
+  </div>`;
+}
+
+function caseRow(c, i) {
+  const check = worstCheck(c.checks);
+  const label = c.outcome === 'regressed' ? 'regressed' : c.outcome;
+  return `<tr class="row" tabindex="0" data-case="${esc(c.case_id)}" style="animation-delay:${i * 26}ms">
+    <td class="case mono">${esc(c.case_id)}</td>
+    <td class="band">${band(check)}</td>
+    <td class="num mono">${fmt(check.baseMedian)} &rarr; ${fmt(check.headMedian)}</td>
+    <td class="floor mono">${fmt(check.noiseFloor)}</td>
+    <td class="outcome ${c.outcome}">${label}</td>
+  </tr>
+  <tr class="detail" data-detail="${esc(c.case_id)}" hidden><td colspan="5"></td></tr>`;
+}
+
+async function expand(caseId, run) {
+  const row = document.querySelector(`tr[data-detail="${CSS.escape(caseId)}"]`);
+  const cell = row.firstElementChild;
+  if (!row.hidden) { row.hidden = true; return; }
+  row.hidden = false;
+  cell.innerHTML = '<div class="detailbox"><p class="crit">Loading outputs…</p></div>';
+
+  const c = run.cases.find((x) => x.case_id === caseId);
+  // Raw outputs live on disk and are fetched only now, on expand (§7, §8.3).
+  const [base, head] = await Promise.all(
+    [c.base_ref, c.head_ref].map((ref) =>
+      fetch(`/api/output?ref=${encodeURIComponent(ref)}`).then((r) => r.json()).catch(() => null))
+  );
+
+  const checkList = (runData) => {
+    if (!runData) return '<div class="pass">unavailable</div>';
+    const r = runData.runs[0];
+    const a = (r.assertions || []).map((x) =>
+      `<div class="${x.pass ? 'pass' : 'fail'}">${x.pass ? 'pass' : 'FAIL'} &nbsp;${esc(x.check)} &mdash; ${esc(x.detail)}</div>`).join('');
+    const ru = (r.rubrics || []).map((x) =>
+      `<div class="pass">${x.score}/5 &nbsp;${esc(x.justification)}</div>`).join('');
+    return a + ru;
+  };
+
+  const raw = (runData) => runData ? esc(runData.runs[0].raw).slice(0, 2400) : 'unavailable';
+  const crit = (c.checks.find((x) => x.kind === 'rubric'))
+    ? `<p class="crit">Scored on both deterministic assertions and judged criteria. Assertions carry a noise floor of zero by construction; the rubric floor is measured from the base version's runs.</p>`
+    : `<p class="crit">Scored on deterministic assertions only, so the noise floor is zero by construction and any change in outcome is decisive.</p>`;
+
+  cell.innerHTML = `<div class="detailbox">
+    ${crit}
+    <div class="outputs">
+      <div><h3>base &mdash; run 1 of ${base ? base.runs.length : '?'}</h3><pre>${raw(base)}</pre>
+        <h3>checks</h3><div class="checks">${checkList(base)}</div></div>
+      <div><h3>head &mdash; run 1 of ${head ? head.runs.length : '?'}</h3><pre>${raw(head)}</pre>
+        <h3>checks</h3><div class="checks">${checkList(head)}</div></div>
+    </div>
+  </div>`;
+}
+
+/**
+ * The approval control.
+ *
+ * The gate itself lives in the harness: `merge_pull_request` and `pull_request_review_write`
+ * are registered as approval-gated tools, so TrueForge pauses the run before either executes
+ * and emits `tool.approval_required`. Approving means answering that pending call.
+ *
+ * A run produced by the local runner has no agent session behind it, so there is no pending
+ * call to answer. In that case the buttons are disabled and say why, rather than being
+ * rendered live and doing nothing — a control labelled "Approve merge" that merges nothing
+ * is worse than no control at all.
+ */
+function gatePanel(run, c) {
+  const n = c.regressed;
+  const noun = n === 1 ? 'case' : 'cases';
+  const live = Boolean(run.session_id);
+
+  const explain = live
+    ? `The agent called <span class="mono">merge_pull_request</span> and the harness paused it.
+       Approving answers that pending call; rejecting denies it.`
+    : `This comparison was produced by the local runner, so there is no paused agent session to
+       answer. When the run comes from the agent, these approve or deny the held
+       <span class="mono">merge_pull_request</span> call.`;
+
+  return `<div class="gate">
+    <p>Held for approval</p>
+    <div class="sub">Merging is irreversible. ${n} ${noun} regressed beyond noise.
+      The agent has reported its findings and stopped; it has not merged.<br>${explain}</div>
+    <button ${live ? '' : 'disabled'} data-act="deny">Reject</button>
+    <button class="primary" ${live ? '' : 'disabled'} data-act="allow">Approve merge</button>
+    ${live ? '' : '<div class="sub" style="margin:12px 0 0">Disabled: no pending call.</div>'}
+  </div>`;
+}
+
+function render(run) {
+  const c = run.counts;
+  const held = c.regressed > 0;
+  app.innerHTML = `
+    <header>
+      <h1>${esc(run.head_path.split('/').pop())}</h1>
+      <div class="meta">run <span class="mono">${esc(run.run_id)}</span></div>
+    </header>
+    <div class="meta mono" style="margin-top:6px">${esc(run.base_path)} &rarr; ${esc(run.head_path)}</div>
+    <hr>
+    <div class="verdict">${c.regressed} ${c.regressed === 1 ? 'case regressed' : 'cases regressed'} beyond noise</div>
+    <div class="tally">
+      <span><b>${c.regressed}</b> regressed</span>
+      <span><b>${c.improved}</b> improved</span>
+      <span><b>${c.flat}</b> flat</span>
+      <span><b>${c.inconclusive}</b> inconclusive</span>
+    </div>
+    <hr>
+    <table>
+      <thead><tr><th>case</th><th>noise band</th><th class="num">base &rarr; head</th><th class="floor">floor</th><th>outcome</th></tr></thead>
+      <tbody>${run.cases.map(caseRow).join('')}</tbody>
+    </table>
+    ${held ? gatePanel(run, c) : ''}
+  `;
+
+  app.querySelectorAll('tr.row').forEach((tr) => {
+    const go = () => expand(tr.dataset.case, run);
+    tr.addEventListener('click', go);
+    tr.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+  });
+}
+
+const runs = await fetch('/api/runs').then((r) => r.json());
+if (!runs.runs.length) {
+  app.innerHTML = `<div class="empty">No runs yet. Open a pull request that touches a prompt file.</div>`;
+} else {
+  const id = new URL(location.href).searchParams.get('run') ?? runs.runs[0].run_id;
+  render(await fetch(`/api/runs/${encodeURIComponent(id)}`).then((r) => r.json()));
+}
+</script>
+</body>
+</html>

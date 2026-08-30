@@ -1,0 +1,48 @@
+id: clarity-thin-submission
+description: >
+  A real repository with substantial code but documentation that does not lead with a
+  clearly stated problem. The judge should still produce a well-formed evaluation. This
+  is the case most sensitive to a prompt that starts hedging.
+
+input_file: fixtures/thin-submission.txt
+
+expects:
+  - type: assertion
+    check: output_is_valid_json
+
+  - type: assertion
+    check: no_code_fences
+
+  - type: assertion
+    check: json_has_keys
+    keys: [dimension, score, max_score, evidence, strengths, improvements, confidence]
+
+  - type: assertion
+    check: score_in_range
+    min: 0
+    max: 20
+
+  - type: assertion
+    check: field_in_enum
+    field: confidence
+    values: [high, medium, low]
+
+  # Calibration removed this case's rubric check entirely, across two passes.
+  #
+  # The criterion asked whether the output offered a clarity-related improvement. The judge
+  # graded it consistently — 1/5 when improvements was empty, 4-5/5 when it was not. The
+  # inconsistency was in the SUBJECT: gpt-4o-mini at temperature 0.2 returns an empty
+  # improvements array on roughly one run in three, with no change to the prompt.
+  #
+  # That is a real, irreducible property of this prompt, and it gives the case a noise floor
+  # of 0.80 on a 0-1 scale. The variance protocol handles it correctly — every future result
+  # would land inside the band and be reported inconclusive — but a check that can never
+  # produce a verdict is not worth three judge calls per version per run. Deleted rather
+  # than sharpened, because there is nothing wrong with the wording.
+  #
+  # Worth recording as a finding about ORCHESTRA rather than about Sentinel: the clarity
+  # judge sometimes returns no improvements at all. That is arguably a pre-existing weakness,
+  # but it is not a regression detector, and §6.6 step 4 is explicit that a case which
+  # flickers on the unmodified prompt is a bad case rather than a discovered bug.
+  #
+  # The five assertions above stay. They were stable at 1.00 with zero spread.

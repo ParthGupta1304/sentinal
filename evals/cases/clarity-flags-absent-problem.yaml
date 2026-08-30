@@ -1,0 +1,88 @@
+id: clarity-flags-absent-problem
+description: >
+  A competent technical project whose documentation never says what problem it solves or
+  who has that problem. There is plenty of content — architecture, configuration, commits
+  — but none of it is clarity-relevant.
+
+  Calibration rewrote this case. It originally carried two rubric criteria asking the judge
+  to name the missing problem statement explicitly and still credit the documented
+  architecture. Both scored 1/5 across every run, and the judge's reasoning showed why: the
+  prompt promises that on insufficient information it returns score 0 with a fixed sentence,
+  and that is exactly what it did. The criteria were asking it to violate its own contract.
+  That is a bad case, not a discovered bug (§6.6 step 3).
+
+  What survives is the genuinely interesting finding: a submission can be rich in content
+  and still contain nothing this dimension can evaluate. That path is worth guarding, and
+  it is assertable rather than a matter of judgement — so it costs no judge calls and
+  carries a zero noise floor. It differs from clarity-empty-input by proving the fallback
+  keys on relevance, not on length.
+
+input: |
+
+  === GITHUB METADATA ===
+  Description: N/A
+  Primary Language: Python
+  Created At: 2026-08-15T11:20:00Z
+  Open Issues: 2
+
+  === LANGUAGE BREAKDOWN ===
+  Python: 84210 bytes, Dockerfile: 1120 bytes
+
+  === README ===
+  # pipeline-svc
+
+  ## Install
+  pip install -r requirements.txt
+
+  ## Run
+  python -m pipeline --config config.yaml
+
+  ## Configuration
+  | Key | Default | Description |
+  |-----|---------|-------------|
+  | workers | 4 | Worker process count |
+  | batch_size | 256 | Records per batch |
+  | retry_limit | 3 | Retries before dead-letter |
+
+  ## Architecture
+  Ingest workers pull from Kafka, transform in-process, and write to Postgres via
+  COPY. Backpressure is handled by a bounded queue.
+
+  === FILE STRUCTURE ===
+  pipeline/__init__.py
+  pipeline/ingest.py
+  pipeline/transform.py
+  pipeline/sink.py
+  tests/test_transform.py
+  Dockerfile
+
+  === RECENT COMMITS (last 10) ===
+  - 2026-08-27T14:02:00Z: add dead-letter queue
+  - 2026-08-26T09:41:00Z: bound the ingest queue
+  - 2026-08-24T17:33:00Z: COPY-based sink
+
+expects:
+  - type: assertion
+    check: output_is_valid_json
+
+  - type: assertion
+    check: no_code_fences
+
+  - type: assertion
+    check: json_has_keys
+    keys: [dimension, score, max_score, evidence, strengths, improvements, confidence]
+
+  - type: assertion
+    check: field_equals
+    field: score
+    value: 0
+
+  - type: assertion
+    check: array_field_contains
+    field: improvements
+    substring: "No clarity-relevant assets were provided"
+
+  - type: assertion
+    check: field_in_enum
+    field: confidence
+    values: [high, medium, low]

@@ -1,0 +1,310 @@
+
+=== GITHUB METADATA ===
+Description: N/A
+Primary Language: TypeScript
+Created At: 2026-03-25T16:04:42Z
+Open Issues: 0
+
+=== LANGUAGE BREAKDOWN ===
+TypeScript: 99901 bytes, JavaScript: 40518 bytes, CSS: 3218 bytes
+
+=== README ===
+<div align="center">
+
+<img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" />
+<img src="https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white" />
+<img src="https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white" />
+<img src="https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white" />
+<img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" />
+<img src="https://img.shields.io/badge/TailwindCSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" />
+
+<br /><br />
+
+# 🎼 Orchestra
+
+**AI-powered hackathon judging. Upload a spreadsheet. Get a leaderboard.**
+
+Orchestra replaces the exhausting process of manually reviewing dozens of GitHub repos and pitch decks. Drop in a CSV of team submissions and the system evaluates every project through a multi-agent AI pipeline — scoring, ranking, and generating written feedback automatically.
+
+</div>
+
+---
+
+## What It Looks Like
+
+### Hackathon Leaderboard
+Rankings for every team, with per-dimension breakdowns and confidence tiers at a glance.
+
+![Leaderboard view showing ranked teams with score breakdowns](./docs/screenshots/Leaderboard.jpeg)
+
+### Team Result Page
+Full score breakdown for a single team, with a downloadable feedback report and editable dimension scores.
+
+![Team result page showing dimension scores and AI feedback report](./docs/screenshots/teamresultpage.jpeg)
+
+### Agent Audit View
+See exactly what each AI judge found — strengths, improvements, and evidence — before the chief judge calculated the final score.
+
+![Agent audit view showing individual judge outputs for a submission](./docs/screenshots/Agent-audit.jpeg)
+
+---
+
+## Features
+
+- Upload a CSV and let evaluation run entirely in the background
+- Five specialized AI judges, each scoring a different dimension
+- Bias auditor that reviews all judge outputs before the final score is set
+- Chief judge that sums everything up and assigns a confidence tier
+- Auto-generated written feedback report for every team
+- Live progress tracking during batch evaluation
+- Global and per-hackathon leaderboard
+- Manual score override system with judge name and reason
+
+
+
+
+
+- **Agentic LLM Router (Triage Mode)**: For large, multi-track hackathons, a lightweight "Router Agent" will rapidly scan incoming submissions and dynamically route evaluations to domain-specific personas or localized models (e.g., a "Web3 Judge", a "Healthcare Compliance Judge", a "Hardware Edge-AI Judge"). This ensures highly technical and jargon-heavy submissions receive mathematically and scientifically rigorous evaluations.
+
+---
+
+## Scoring System
+
+Every submission is scored out of **100 points** across five categories. The five judge agents run in parallel, then the bias auditor and chief judge run on their combined outputs.
+
+
+| Category     | Max | What it looks at |
+|:-------------|:---:|:-----------------|
+| Innovation   | 25  | Originality of the idea, creative problem-solving |
+| Technical    | 25  | Code quality, architecture, complexity |
+| Business     | 15  | Market opportunity, feasibility, monetization angle |
+| Presentation | 15  | Pitch deck quality and storytelling |
+| Clarity      | 20  | How well the problem and solution are communicated |
+=======
+| Category     | Max Score | What it looks at                                      |
+| ------------ | --------- | ----------------------------------------------------- |
+| Innovation   | 25        | Uniqueness of the idea and creative problem-solving   |
+| Technical    | 25        | Code quality, architecture, and technical complexity  |
+| Business     | 15        | Market opportunity, feasibility, and monetization     |
+| Presentation | 15        | Clarity of the pitch deck and storytelling            |
+| Clarity      | 20        | How clearly the problem and solution are communicated |
+
+
+After scoring, the chief judge assigns one of three confidence tiers:
+
+- **High** — strong evidence across all dimensions
+- **Medium** — some gaps but enough signal to be reliable  
+- **Low** — one or more agents had missing or weak input (e.g. no GitHub link)
+
+---
+
+## Tech Stack
+
+### LLM and AI Models
+
+Every agent in the pipeline calls **GPT-4o** directly. Temperature is set to `0.1` across all agents to keep outputs consistent and structured. GPT-4o was chosen because it handles both code reasoning (for GitHub repos) and language quality evaluation (for pitch decks) in the same call.
+
+### Agent Framework
+
+No external framework is used. The multi-agent system is a set of plain Node.js async functions coordinated by a custom orchestrator. The five judge agents run with `Promise.allSettled` so a single failure never blocks the rest. After they complete, the bias auditor and chief judge run in sequence.
+
+```
+Parser
+  └─> [Innovation] [Technical] [Business] [Presentation] [Clarity]  ← parallel
+        └─> Bias Auditor
+              └─> Chief Judge
+                    └─> Feedback Engine
+```
+
+### Fullstack and API
+
+| Layer       | Technology                             |
+|:------------|:---------------------------------------|
+| Frontend    | Next.js 16, React 19, TypeScript       |
+| Styling     | Tailwind CSS v4                        |
+| Animations  | Framer Motion                          |
+| Icons       | Lucide React                           |
+| Backend     | Node.js, Express v5                    |
+| Validation  | Zod                                    |
+| File upload | Multer                                 |
+| HTTP client | Axios                                  |
+
+All responses follow a consistent shape: `{ success: boolean, data | error }`.
+
+### Infrastructure
+
+| Concern        | Solution                                                         |
+|:---------------|:-----------------------------------------------------------------|
+| Database       | **Neon DB** (serverless PostgreSQL) via the `pg` client with SSL |
+| File storage   | Local `uploads/` folder via Multer                               |
+| Job tracking   | In-memory object on the Express process                          |
+| Secrets        | `.env` file with `dotenv`                                        |
+| AI calls       | OpenAI API                                                       |
+
+Neon DB is a serverless Postgres platform — it scales to zero when idle and requires no server to manage. The connection is configured via a `DATABASE_URL` environment variable with SSL enforced.
+
+> **Note:** The in-memory job tracker resets if the server restarts mid-batch. For a more resilient setup, wire in a proper job queue like BullMQ.
+
+---
+
+## Project Structure
+
+```
+ORBIX/
+├── backend/
+│   ├── agents/
+│   │   ├── innovationJudge.js      # Scores originality and creativity (out of 25)
+│   │   ├── technicalJudge.js       # Scores code quality and architecture (out of 25)
+│   │   ├── businessJudge.js        # Scores market viability (out of 15)
+│   │   ├── presentationJudge.js    # Scores the pitch deck (out of 15)
+│   │   ├── clarityJudge.js         # Scores communication quality (out of 20)
+│   │   ├── biasAuditor.js          # Flags potential bias in judge outputs
+│   │   └── chiefJudge.js           # Aggregates scores, assigns confidence tier
+│   ├── db/
+│   │   └── database.js             # SQLite setup and table definitions
+│   ├── models/
+│   │   └── schemas.js              # Zod validation for the upload request
+│   ├── pipeline/
+│   │   ├── orchestrator.js         # Runs the full evaluation pipeline
+│   │   ├── parser.js               # Fetches and parses GitHub repos and PPTX files
+│   │   └── feedbackEngine.js       # Generates the written feedback report
+│   ├── uploads/                    # Temp folder for uploaded CSVs
+│   ├── utils.js
+│   └── server.js                   # Express server and all REST routes
+│
+└── frontend/
+    ├── app/
+    │   ├── dashboard/              # Main dashboard
+    │   ├── hackathons/             # Hackathon list and per-hackathon leaderboard
+    │   ├── upload/                 # CSV upload form
+    │   ├── results/                # Individual team result and audit page
+    │   ├── login/
+    │   └── signup/
+    ├── components/ui/              # Shared UI components
+    └── public/
+```
+
+---
+
+## CSV Format
+
+Column names are matched case-insensitively, so variations like `"Team Name"` or `"team name"` both work.
+
+
+| Column         | Accepted names                                              | Required |
+|:---------------|:------------------------------------------------------------|:--------:|
+| Team name      | team name, team, project name, project                      | ✅ |
+| GitHub URL     | github url, github, repo url, repo                          | ✅ * |
+| Pitch deck URL | pitch deck url, pitch deck, presentation, pptx url          | ✅ * |
+| Prototype URL  | prototype url, prototype, demo link, demo                   | ❌ |
+
+*At least one of GitHub URL or Pitch deck URL is required per row.
+=======
+| Column         | Accepted Variations                                | Required |
+| -------------- | -------------------------------------------------- | -------- |
+| Team name      | team name, team, project name, project             | Yes      |
+| GitHub URL     | github url, github, repo url, repo                 | Yes\*    |
+| Pitch deck URL | pitch deck url, pitch deck, presentation, pptx url | Yes\*    |
+| Prototype URL  | prototype url, prototype, demo link, demo          | No       |
+
+\*At least one of GitHub URL or Pitch deck URL must be present for a row to be evaluated.
+
+
+---
+
+## API Reference
+
+| Method | Endpoint                       | Description |
+|:-------|:-------------------------------|:------------|
+| POST   | `/api/hackathon/upload`        | Upload CSV and start batch evaluation |
+| GET    | `/api/hackathon/progress/:id`  | Poll progress of a running batch job |
+| GET ... [truncated for length]
+
+=== FILE STRUCTURE ===
+.DS_Store
+README.md
+backend
+backend/.gitignore
+backend/agents
+backend/agents/biasAuditor.js
+backend/agents/businessJudge.js
+backend/agents/chiefJudge.js
+backend/agents/clarityJudge.js
+backend/agents/innovationJudge.js
+backend/agents/presentationJudge.js
+backend/agents/technicalJudge.js
+backend/db
+backend/db/database.js
+backend/models
+backend/models/schemas.js
+backend/package-lock.json
+backend/package.json
+backend/pipeline
+backend/pipeline/feedbackEngine.js
+backend/pipeline/orchestrator.js
+backend/pipeline/parser.js
+backend/server.js
+backend/test_pptx.js
+backend/utils.js
+docs
+docs/screenshots
+docs/screenshots/Agent-audit.jpeg
+docs/screenshots/Ai-feedback-report.jpeg
+docs/screenshots/Leaderboard.jpeg
+docs/screenshots/teamresultpage.jpeg
+frontend
+frontend/.gitignore
+frontend/AGENTS.md
+frontend/CLAUDE.md
+frontend/README.md
+frontend/app
+frontend/app/dashboard
+frontend/app/dashboard/page.tsx
+frontend/app/favicon.ico
+frontend/app/globals.css
+frontend/app/hackathons
+frontend/app/hackathons/[id]
+frontend/app/hackathons/[id]/page.tsx
+frontend/app/hackathons/page.tsx
+frontend/app/layout.tsx
+frontend/app/login
+frontend/app/login/page.tsx
+frontend/app/page.tsx
+frontend/app/results
+frontend/app/results/[id]
+frontend/app/results/[id]/page.tsx
+frontend/app/signup
+frontend/app/signup/page.tsx
+frontend/app/upload
+frontend/app/upload/page.tsx
+frontend/components
+frontend/components/providers.tsx
+frontend/components/ui
+frontend/components/ui/aether-background.tsx
+frontend/components/ui/aether-flow-hero.tsx
+frontend/components/ui/navbar.tsx
+frontend/eslint.config.mjs
+frontend/next.config.ts
+frontend/package-lock.json
+frontend/package.json
+frontend/postcss.config.mjs
+frontend/public
+frontend/public/file.svg
+frontend/public/globe.svg
+frontend/public/next.svg
+frontend/public/vercel.svg
+frontend/public/window.svg
+frontend/tsconfig.json
+
+=== RECENT COMMITS (last 10) ===
+- 2026-03-26T06:15:20Z: adding routing feature to readme
+- 2026-03-26T05:30:53Z: adding team result page for readme
+- 2026-03-26T02:28:25Z: readme and minor change
+- 2026-03-26T02:26:49Z: deployment links changed
+- 2026-03-26T02:31:10Z: Rename Leaderboard to Leaderboard.jpeg
+- 2026-03-26T02:30:56Z: Rename Ai-feedback-report to Ai-feedback-report.jpeg
+- 2026-03-26T02:30:24Z: Rename Agent-audit to Agent-audit.jpeg
+- 2026-03-26T02:26:07Z: Fix image file names in README.md
+- 2026-03-26T02:24:14Z: Update README.md
+- 2026-03-26T02:23:10Z: Rename WhatsApp Image 2026-03-26 at 7.08.46 AM.jpeg to Agent-audit
+

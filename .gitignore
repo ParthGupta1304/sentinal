@@ -1,2 +1,36 @@
+# Working documents, kept local
 /SPIKE.md
 /sentinalprd.md
+
+# Secrets — never commit (§9.4). .env.example is the checked-in template.
+.env
+.env.local
+.env.*.local
+
+# Run records and eval output
+sentinel.db
+sentinel.db-journal
+runs/
+
+# Dependencies and build output
+node_modules/
+.next/
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+
+# Screenshot / browser-automation artifacts
+.playwright-mcp/
+*.png
+
+# Local run logs
+calibration.log
+calibration-confirm.log
+compare.log
+web.log

@@ -1,0 +1,79 @@
+id: clarity-evidence-grounded
+description: >
+  A submission with a genuinely sharp problem statement and a named user. The judge should
+  be able to point at the specific sentences that make it clear, which is what separates a
+  useful evaluation from a score with decoration attached.
+
+input: |
+
+  === GITHUB METADATA ===
+  Description: Shift handover for ICU nurses
+  Primary Language: TypeScript
+  Created At: 2026-08-18T08:00:00Z
+  Open Issues: 5
+
+  === README ===
+  # Handover
+
+  ## The problem
+  ICU shift handover happens verbally at the bedside, under time pressure, for
+  patients whose status changed multiple times in twelve hours. Nurses we
+  shadowed at two hospitals kept private paper notes because the EMR summary
+  is organised by system, not by what changed since the last shift. When those
+  notes do not transfer, the incoming nurse rebuilds context from the chart,
+  which takes eleven minutes per patient on average.
+
+  ## Who this is for
+  Bedside ICU nurses handing over a 4 to 6 patient assignment. Not physicians,
+  not administrators.
+
+  ## What it does
+  Generates a change-oriented summary per patient: what was different this
+  shift, what was escalated, what the incoming nurse must watch. Sourced from
+  existing EMR events, so nothing extra is typed.
+
+  === FILE STRUCTURE ===
+  src/summary/diff.ts
+  src/summary/render.ts
+  src/ehr/fhir-client.ts
+  tests/diff.test.ts
+
+  === RECENT COMMITS (last 10) ===
+  - 2026-08-28T16:20:00Z: handle med reconciliation events
+  - 2026-08-27T11:05:00Z: diff vitals by trend not snapshot
+
+expects:
+  - type: assertion
+    check: output_is_valid_json
+
+  - type: assertion
+    check: json_has_keys
+    keys: [dimension, score, max_score, evidence, strengths, improvements, confidence]
+
+  - type: assertion
+    check: score_in_range
+    min: 0
+    max: 20
+
+  # Calibration rewrote both criteria. The first demanded that evidence quote the
+  # submission's specific details (the eleven minutes, the two hospitals) and scored a
+  # stable 1/5; the second demanded the judge frame narrow user scoping as a strength and
+  # scored 2-3/5. Neither is something the prompt promises — it asks for evidence, not
+  # quotation, and sets no position on scope. Both were measuring my preferences rather
+  # than the prompt's contract (§6.6 step 3).
+  #
+  # Restated as what this submission should actually produce: it has a genuinely sharp
+  # problem statement, so a judge reading it correctly should score it well and say why.
+  - type: rubric
+    criterion: >
+      The judge assesses this submission as having a clearly defined problem and a
+      identifiable user, and its score reflects that rather than treating the problem
+      definition as vague or missing.
+    weight: 3
+
+  - type: rubric
+    criterion: >
+      The evidence and strengths describe the submission that was given — the handover
+      problem, the nurses, or the change-oriented summary — rather than being empty or
+      describing a different kind of project.
+    weight: 2
