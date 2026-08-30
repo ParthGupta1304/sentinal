@@ -7,8 +7,8 @@ change a system prompt, swap a few-shot example, tighten an output format — an
 no test, because the author checks the case they were fixing, not the cases they broke.
 
 Sentinel runs an eval suite against both versions of a changed prompt, accounts for run-to-run
-variance, and reports what actually moved. Then it stops, because merging is irreversible and
-a human should decide.
+variance, and reports what actually moved. Then it **stops**. Merging is irreversible. A human
+decides.
 
 Built for the Agent Harness Hackathon (WeMakeDevs × TrueFoundry × Qodo).
 
@@ -17,33 +17,29 @@ Built for the Agent Harness Hackathon (WeMakeDevs × TrueFoundry × Qodo).
 ## What it does
 
 When a prompt file changes, Sentinel reads both versions, runs every eval case against each
-one N times, and classifies each case:
+one N times, and classifies each case as **worse**, **better**, **same**, or **unclear**.
 
-```
-2 cases regressed beyond noise
-2 regressed   0 improved   8 flat   0 inconclusive
+A case is only **worse** when the median dropped *and* the drop exceeds the noise floor
+observed on the unchanged (base) version. A drop inside that floor is **unclear**, shown
+rather than hidden. A false regression is worse than a missed one.
 
-case                          noise band      base → head   floor   outcome
-clarity-happy-path            ──────┃──────    1.00 → 1.00   0.00    flat
-clarity-empty-input           ───┃──────┃──    1.00 → 0.80   0.00    regressed
-clarity-flags-absent-problem  ──┃───────┃──    1.00 → 0.67   0.00    regressed
-```
+The dashboard says it in a sentence a stranger can read:
 
-The output is not a score. It is a diff at the level of individual test cases, with the real
-model outputs shown side by side.
+> This change made 2 tests worse.
+> Look at the tests below before you merge.
 
-### The part that makes it trustworthy
+Click a test to see the current prompt vs the new prompt, with Passed/Failed in words. Raw
+model JSON is behind “Show the model’s reply.”
 
-The same prompt run twice produces different outputs, and a judge model scores identical
-outputs differently. So "base scored 4, head scored 3" means nothing on its own.
+On the demo fixture (`evals/regressions/clarity-judge-head.md`) that looks like this:
 
-Every case runs N times per version. The **noise floor** for a case is the spread observed on
-the *base* version — how much it moves when nothing changed. A case is reported as
-**regressed** only when the median dropped *and* the drop exceeds that floor. A drop inside
-the floor is **inconclusive**, shown with its runs rather than hidden.
+- **Empty submission** — worse. The new prompt still returns valid JSON, but invents a
+  plausible score (16) instead of the promised fallback of 0.
+- **No problem statement** — worse. Same failure: the insufficient-information line was
+  deleted, so the judge guesses.
+- The other eight tests stay the same. A credible gate reports what changed, not everything.
 
-A false regression is worse than a missed one, because it destroys trust in the gate. When a
-result is ambiguous, Sentinel says so.
+`compare` exits **2** when anything is worse, so it can gate CI.
 
 ---
 
@@ -52,7 +48,7 @@ result is ambiguous, Sentinel says so.
 Requires Node 22+ and an OpenAI and Anthropic API key.
 
 ```bash
-git clone <this repo> && cd sentinel
+git clone https://github.com/ParthGupta1304/sentinal.git && cd sentinal
 npm install
 cp .env.example .env        # fill in OPENAI_API_KEY, ANTHROPIC_API_KEY, GITHUB_PAT
 ```
@@ -61,7 +57,7 @@ You also need the target repository checked out next to this one, because the ba
 read from its working tree:
 
 ```bash
-git clone https://github.com/ParthGupta1304/ORCHESTRA ../ORCHESTRA
+git clone https://github.com/ParthGupta1304/ORCHESTRA.git ../ORCHESTRA
 npm run harvest             # fetch real submission fixtures from GitHub
 ```
 
@@ -77,56 +73,65 @@ npm run calibrate           # ~90s, runs every case against the unchanged prompt
 node runner/src/compare.mjs --head evals/regressions/clarity-judge-head.md
 ```
 
-Exits `2` when a case regressed beyond its noise floor, so it can gate CI directly.
+Exits `2` when a case regressed beyond its noise floor.
 
 **See it:**
 
 ```bash
-node web/server.mjs         # http://localhost:4310
+npm run dashboard           # http://localhost:4310
 ```
 
-Click any row to expand the two raw outputs side by side.
+Click a test that got worse. Current prompt vs new prompt.
+
+### The agent, on TrueForge
+
+```bash
+npx @truefoundry/trueforge   # http://localhost:8790 — leave running
+npm run setup                # model, GitHub MCP, scoring skill, gated merge tools
+npm run smoke                # sandbox prints {"median": 4}; GitHub reads the prompt
+```
+
+Open TrueForge, pick the `sentinel` agent, give it an ORCHESTRA PR number that touches
+`backend/prompts/`. It reads both versions through GitHub MCP, runs the suite (subagents
+in the sandbox), comments the comparison, and **stops**. Ask it to merge: it calls
+`merge_pull_request`, and the harness pauses until you allow or deny. That pause is the
+product. Refusing to call the tool is not a gate.
+
+---
+
+## What TrueForge does vs what we wrote
+
+| Harness | We wrote |
+|---|---|
+| GitHub MCP (read PR, read file at ref, comment, merge) | Eval cases, assertions, rubric judge, variance math |
+| Sandbox (generated Python, result files) | Local runner that calls the subject and judge models |
+| Approval on `merge_pull_request` and `pull_request_review_write` only | Dashboard that shows the diff a human can act on |
+| Dynamic subagents, one batch of cases each | `sentinel-scoring` skill (the noise-floor protocol) |
+| Sessions that survive a tab close | Calibration that proved the suite is stable |
+
+The default TrueForge gate is `["@write", "@destructive"]`. Posting a PR comment is a write,
+so that default would pause Sentinel *before* it reports. We gate two literal tool names and
+nothing else.
 
 ---
 
 ## Repository layout
 
 ```
-agent/       TrueForge configuration — instructions, setup, smoke test
+agent/       TrueForge config — instructions, setup, smoke, scoring skill
 runner/      eval execution, scoring, variance math, tests
 evals/       cases, harvested fixtures, regression fixtures
-web/         the run view
+web/         the run view (http://localhost:4310)
 ```
 
 | Command | What it does |
 |---|---|
 | `npm test` | 36 unit tests over the variance math and assertion checks |
-| `npm run calibrate` | §6.6 step 4 — proves the suite is stable on the unchanged prompt |
+| `npm run calibrate` | proves the suite is stable on the unchanged prompt |
 | `npm run harvest` | fetches real repo fixtures in ORCHESTRA's own input format |
-| `npm run setup` | configures the TrueForge agent, model provider, and GitHub MCP |
-| `npm run smoke` | one end-to-end agent turn: sandbox, GitHub read, report |
-
----
-
-## How the gate works
-
-`merge_pull_request` and `pull_request_review_write` are registered with the harness as
-approval-gated tools. When the agent calls either, TrueForge pauses the run *before* the tool
-executes and emits `tool.approval_required`. A human allows or denies; only then does it run.
-
-Two details that are easy to get wrong, and both were:
-
-**The gate belongs to the harness, not the agent.** An early version of the instructions told
-the agent "do not merge". It dutifully refused — and no approval event ever fired, because the
-tool was never called. That is a self-gate wearing the costume of a real one: the human never
-sees a checkpoint, and the safety property becomes a matter of the model's judgement instead
-of a property of the system. The instructions now tell the agent to call the tool when asked
-and let the harness hold it.
-
-**The default gate configuration is wrong for this product.** TrueForge defaults to
-`["@write", "@destructive"]`, and posting a PR comment is a write — so the agent would pause
-before reporting its own findings. Sentinel gates two literal tool names and nothing else.
-Reading, running evals, and commenting are free; only the irreversible actions stop.
+| `npm run setup` | configures the TrueForge agent, GitHub MCP, scoring skill |
+| `npm run smoke` | one agent turn: sandbox + GitHub read. Exits 1 if the median is missing |
+| `npm run dashboard` | the run view |
 
 ---
 
@@ -134,54 +139,58 @@ Reading, running evals, and commenting are free; only the irreversible actions s
 
 **Model calls run locally, not in the sandbox.** TrueForge exposes no way to pass environment
 variables into a sandbox, and putting an API key in a prompt is not an option — it persists in
-the session's event history. So the subject and judge models are called by the local runner,
-which holds the keys. The sandbox still does the work §5.3 asks of it: executing generated
-assertion code and holding result files that never enter the agent's context. This is the
-escalation the PRD anticipated (§13): run locally, keep the sandbox for assertion execution,
-and say so here.
+the session's event history. The subject and judge are called by the local runner. The sandbox
+still executes generated assertion code and holds result files that never enter the agent's
+context.
 
-**One repository, one prompt directory, one prompt.** The suite targets ORCHESTRA's clarity
-judge. Nothing generalises automatically.
+**One repository, one prompt.** The suite targets ORCHESTRA's clarity judge.
 
-**Pairwise preference scoring is not built.** §6.4 makes it conditional on the other two
-scoring modes being finished early. They were not.
+**Pairwise preference scoring is not built.**
 
-**The dashboard is a static server, not the Next.js app** described in the PRD. One screen
-carries the demo; a build step would have added risk without adding capability.
+**The dashboard is a static server**, not a Next.js app. One screen carries the demo.
 
-**Nothing detects score-band drift on `clarity-score-calibration`.** Its rubric criteria could
-not be made stable across calibration runs and were removed rather than left failing. The gap
-is recorded in the case file.
+**Nothing detects score-band drift on `clarity-score-calibration`.** Unstable rubric criteria
+were deleted rather than left failing. The gap is in the case file.
+
+**Local compares have no pending merge call**, so the dashboard does not show live Approve /
+Reject. Those buttons appear only when the run came from a TrueForge session. For the demo,
+approve in the harness UI.
 
 ---
 
 ## What calibration found
 
-Calibration is not a formality — it is the difference between a gate and a noise generator.
-Four passes over the unchanged prompt found:
-
-- **The judge could not see the submission.** Any criterion referring to "the input" was
-  unanswerable, and the judge said so in its own justification rather than guessing. Every
-  rubric that scored well had been hand-working around this by restating the submission inside
-  the criterion text.
-- **`temperature` is rejected by `claude-sonnet-5`**, so §6.3's "judge temperature 0" cannot be
-  honoured literally. Stability comes from disabling thinking instead.
-- **Four criteria demanded behaviour the prompt never promised**, including one that punished
-  the judge for correctly returning its own documented fallback.
-- **One case was unstable because the *subject* was**, not the judge: gpt-4o-mini returns an
-  empty `improvements` array on roughly one run in three. Deleted, since a check that can never
-  produce a verdict is not worth its cost.
+Four passes over the unchanged prompt found a runner bug (the judge could not see the
+submission), an API constraint (`claude-sonnet-5` rejects `temperature`), four criteria that
+demanded behaviour the prompt never promised, and one case that flickered because the
+*subject* sometimes returns an empty `improvements` array.
 
 Full record in [CALIBRATION.md](./CALIBRATION.md).
 
 ---
 
+## AI assistance
+
+Built with AI coding assistants (Claude Code, Grok). A human curated every eval case,
+investigated every calibration failure, and chose the gate design: the harness holds merge,
+the agent is not allowed to “be careful” instead.
+
+---
+
+## Qodo Code Review Evidence
+
+Required of every submission. Direct pushes to `main` do not count.
+
+- Representative PR: **(filled in on the qualifying PR — see the pull request that adds this section)**
+- What Qodo surfaced, and what we changed or dismissed, is recorded on that PR.
+- The same PR has a follow-up review against the final code (`/agentic_review` after the
+  README and skill landed).
+
+---
+
 ## Where this goes
 
-Prompt CI does not exist as a category the way code CI does, and the teams who need it most
-ship fastest. The path from here is a GitHub App rather than a local runner, hosted runs, and
-a suite that grows from production traffic instead of hand-written cases.
-
-The runner and scoring logic are decoupled from the dashboard so a hosted version reuses both.
-The interesting long-term asset is the eval suite itself — the thing a team cannot easily move
-to a competitor.
+Prompt CI does not exist as a category the way code CI does. The path from here is a GitHub
+App, hosted runs, and a suite that grows from production traffic. The runner and scoring
+logic are decoupled from the dashboard so a hosted version reuses both. The interesting
+long-term asset is the eval suite itself.
