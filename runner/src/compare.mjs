@@ -80,6 +80,10 @@ if (basePrompt === headPrompt) {
 
 const only = argOf('--case');
 const cases = only ? suite.cases.filter((c) => c.id === only) : suite.cases;
+if (only && cases.length === 0) {
+  console.error(`No case named "${only}". Available: ${suite.cases.map((c) => c.id).join(', ')}`);
+  process.exit(1);
+}
 const n = Number(argOf('--n') ?? suite.runs_per_case ?? 3);
 const runId = argOf('--run-id') ?? `run-${Date.now()}`;
 

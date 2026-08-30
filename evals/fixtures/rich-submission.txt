@@ -6,7 +6,7 @@ Created At: 2026-03-25T16:04:42Z
 Open Issues: 0
 
 === LANGUAGE BREAKDOWN ===
-TypeScript: 99901 bytes, JavaScript: 40518 bytes, CSS: 3218 bytes
+TypeScript: 99901 bytes, JavaScript: 35018 bytes, CSS: 3218 bytes
 
 === README ===
 <div align="center">
@@ -243,6 +243,16 @@ backend/pipeline
 backend/pipeline/feedbackEngine.js
 backend/pipeline/orchestrator.js
 backend/pipeline/parser.js
+backend/prompts
+backend/prompts/bias-auditor.md
+backend/prompts/business-judge.md
+backend/prompts/chief-judge.md
+backend/prompts/clarity-judge.md
+backend/prompts/feedback-engine.md
+backend/prompts/index.js
+backend/prompts/innovation-judge.md
+backend/prompts/presentation-judge.md
+backend/prompts/technical-judge.md
 backend/server.js
 backend/test_pptx.js
 backend/utils.js
@@ -297,6 +307,27 @@ frontend/public/window.svg
 frontend/tsconfig.json
 
 === RECENT COMMITS (last 10) ===
+- 2026-08-30T10:16:25Z: Extract judge prompts into backend/prompts/*.md
+
+The seven judge agents and the feedback engine each held their prompt inline
+as a template literal, so a prompt change was invisible in review: it showed
+up as a diff inside a JavaScript file, mixed in with the model call around it.
+
+Move each prompt into its own markdown file and load it through a small
+loader. Prompts can now be diffed, reviewed, and regression-tested on their
+own, which is what Sentinel needs to compare two versions of one.
+
+Behaviour is unchanged. Every rendered prompt is byte-identical to what the
+agents sent before, verified against HEAD for all eight.
+
+Two details the loader has to get right, both found by that check:
+- The .md files end with a trailing newline, as text files should; the inline
+  literals did not. The loader drops exactly one.
+- Serialization stays at the call site. The judging agents pass indented JSON
+  and feedbackEngine passes compact, so a default in the loader would have
+  silently changed two prompts.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 - 2026-03-26T06:15:20Z: adding routing feature to readme
 - 2026-03-26T05:30:53Z: adding team result page for readme
 - 2026-03-26T02:28:25Z: readme and minor change
@@ -306,5 +337,4 @@ frontend/tsconfig.json
 - 2026-03-26T02:30:24Z: Rename Agent-audit to Agent-audit.jpeg
 - 2026-03-26T02:26:07Z: Fix image file names in README.md
 - 2026-03-26T02:24:14Z: Update README.md
-- 2026-03-26T02:23:10Z: Rename WhatsApp Image 2026-03-26 at 7.08.46 AM.jpeg to Agent-audit
 

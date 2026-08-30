@@ -23,6 +23,12 @@ const root = join(here, '..');
 const runsDir = join(root, 'runs');
 const PORT = Number(process.env.PORT ?? 4310);
 
+const FAVICON = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="6" fill="#F4F1EA"/>
+  <path d="M8 17.5 13 22.5 24 10" fill="none" stroke="#A8452B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
+
 const send = (res, code, body, type = 'application/json') => {
   res.writeHead(code, { 'Content-Type': type, 'Cache-Control': 'no-store' });
   res.end(typeof body === 'string' ? body : JSON.stringify(body));
@@ -62,6 +68,10 @@ const server = createServer(async (req, res) => {
   try {
     if (path === '/' || path === '/index.html') {
       return send(res, 200, await readFile(join(here, 'index.html'), 'utf8'), 'text/html; charset=utf-8');
+    }
+
+    if (path === '/favicon.svg' || path === '/favicon.ico') {
+      return send(res, 200, FAVICON, 'image/svg+xml');
     }
 
     if (path === '/api/runs') {

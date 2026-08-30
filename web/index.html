@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sentinel</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
@@ -347,13 +348,20 @@ function when(ts) {
   return new Date(ts).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
+function ranCount(c) {
+  return (c?.regressed ?? 0) + (c?.improved ?? 0) + (c?.flat ?? 0) + (c?.inconclusive ?? 0);
+}
+
 function runLabel(r) {
   const n = r.counts?.regressed ?? 0;
-  const head = n > 0 ? `${n} worse` : (r.counts?.inconclusive ? 'unclear' : 'looks safe');
+  const head = ranCount(r.counts) === 0
+    ? 'no tests'
+    : n > 0 ? `${n} worse` : (r.counts?.inconclusive ? 'unclear' : 'looks safe');
   return [head, when(r.finished_at)].filter(Boolean).join(' · ');
 }
 
-function headline(c) {
+function headline(c, cases) {
+  if (!cases.length) return 'No tests ran.';
   if (c.regressed === 1) return 'This change made 1 test worse.';
   if (c.regressed > 1) return `This change made ${c.regressed} tests worse.`;
   if (c.inconclusive > 0) return 'Nothing clearly got worse, but some results are unclear.';
@@ -361,7 +369,8 @@ function headline(c) {
   return 'This change looks safe.';
 }
 
-function advice(c) {
+function advice(c, cases) {
+  if (!cases.length) return 'Nothing was compared. Check the case name passed to compare.';
   if (c.regressed > 0) return 'Look at the tests below before you merge.';
   if (c.inconclusive > 0) return 'Scores moved a little. That can happen even when the prompt did not really change.';
   return 'Every test behaved the same as before.';
@@ -402,11 +411,19 @@ function testButton(c, i, loud) {
     </div>`;
 }
 
+function checkLabel(x) {
+  if (x.check === 'field_equals') {
+    const field = (x.detail || '').match(/^[A-Za-z_][A-Za-z0-9_]*/)?.[0];
+    return field ? `${field} had the right value` : CHECKS.field_equals;
+  }
+  return CHECKS[x.check] || x.check;
+}
+
 function checkList(runData) {
   if (!runData) return '<div class="ok">Could not load this output.</div>';
   const r = runData.runs[0];
   const a = (r.assertions || []).map((x) =>
-    `<div class="${x.pass ? 'ok' : 'fail'}">${x.pass ? 'Passed' : 'Failed'} · ${esc(CHECKS[x.check] || x.check)}${x.pass ? '' : ' — ' + esc(x.detail)}</div>`
+    `<div class="${x.pass ? 'ok' : 'fail'}">${x.pass ? 'Passed' : 'Failed'} · ${esc(checkLabel(x))}${x.pass ? '' : ' — ' + esc(x.detail)}</div>`
   ).join('');
   const ru = (r.rubrics || []).map((x) =>
     `<div class="ok">Judged ${x.score}/5 · ${esc(x.justification)}</div>`
@@ -491,14 +508,14 @@ function render(run, runs) {
           ${runs.map((r) => `<option value="${esc(r.run_id)}" ${r.run_id === current ? 'selected' : ''}>${esc(runLabel(r))}</option>`).join('')}
         </select>` : ''}
     </header>
-    <h1 class="verdict">${esc(headline(c))}</h1>
-    <p class="advice">${esc(advice(c))}</p>
-    <div class="tally">
+    <h1 class="verdict">${esc(headline(c, run.cases))}</h1>
+    <p class="advice">${esc(advice(c, run.cases))}</p>
+    ${run.cases.length ? `<div class="tally">
       <span class="chip ${c.regressed ? 'worse' : ''}">${c.regressed} worse</span>
       <span class="chip ${c.improved ? 'better' : ''}">${c.improved} better</span>
       <span class="chip">${c.flat} same</span>
       ${c.inconclusive ? `<span class="chip">${c.inconclusive} unclear</span>` : ''}
-    </div>
+    </div>` : ''}
     ${g.regressed.length ? `<section>
       <h2>Needs a look</h2>
       <p class="hint">Click a test to see what changed.</p>
