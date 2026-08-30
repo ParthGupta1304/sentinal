@@ -181,10 +181,13 @@ the agent is not allowed to “be careful” instead.
 
 Required of every submission. Direct pushes to `main` do not count.
 
-- Representative PR: **(filled in on the qualifying PR — see the pull request that adds this section)**
-- What Qodo surfaced, and what we changed or dismissed, is recorded on that PR.
-- The same PR has a follow-up review against the final code (`/agentic_review` after the
-  README and skill landed).
+- Representative PR: https://github.com/ParthGupta1304/sentinal/pull/1
+  Scoring skill, README that matches the running dashboard, field report, and TrueForge
+  setup that loads the skill from this repo.
+- What Qodo surfaced, and what we changed or dismissed, is on that PR thread. High
+  findings get a fix or a written dismissal; Medium and Low are an engineering call.
+- Follow-up: after this evidence section landed, `/agentic_review` was run again on the
+  same PR so the trail shows review → decision → re-review of the final code.
 
 ---
 
