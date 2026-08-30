@@ -98,6 +98,20 @@ async function main() {
   });
   console.log('  model provider: anthropic');
 
+  // Skills are git-backed SKILL.md packs. The harness clones this repo into the
+  // sandbox; the agent loads the scoring protocol when it runs the suite.
+  await api('PUT', '/api/v1/settings/skills', {
+    manifest: {
+      type: 'git',
+      name: 'sentinel-scoring',
+      url: 'https://github.com/ParthGupta1304/sentinal',
+      path: 'agent/skills/sentinel-scoring',
+      ref: env.SENTINEL_SKILL_REF || 'main',
+      description: 'Score eval cases with the noise-floor protocol. A drop is a regression only when it exceeds the base version\'s observed spread.',
+    },
+  });
+  console.log('  skill: sentinel-scoring');
+
   await api('PUT', '/api/v1/settings/mcp-servers', {
     manifest: {
       type: 'remote',
@@ -113,6 +127,7 @@ async function main() {
     model: { name: MODEL, params: { temperature: 0 } },
     instructions: readFileSync(join(here, 'instructions.md'), 'utf8'),
     mcp_servers: [{ name: 'github', require_approval_for_tools: GATED }],
+    skills: [{ name: 'sentinel-scoring' }],
     config: {
       // Required for skills and for running generated assertion code (§5.3, §6.2).
       sandbox: { enabled: true, file_downloads: true },
