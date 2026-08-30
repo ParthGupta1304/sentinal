@@ -43,6 +43,153 @@ On the demo fixture (`evals/regressions/clarity-judge-head.md`) that looks like 
 
 ---
 
+## Architecture
+
+Sentinel targets **ORCHESTRA**, an existing multi-agent project that judges hackathon
+submissions. That choice is deliberate, not incidental: its judging prompts are real, not
+invented for a demo, and a judging prompt is exactly the case where a regression is invisible
+without evals — the output is a qualitative assessment, not a value you can diff.
+
+There are two ways to run a comparison, and they share everything downstream of "get two
+prompt strings." Path A is how a human runs one on a laptop. Path B is how it runs from a PR,
+gated by a harness instead of a person's habit of remembering to run it.
+
+**A — local / CI path.** No agent, no sandbox. You already have both prompt files.
+
+```
+you                 runner/src/compare.mjs
+ │  --head <file>         │
+ └───────────────────────>│  loads evals/suite.yaml + evals/cases/*.yaml
+                           │  for each case, N runs per version:
+                           │    subject model  → runner/src/run-case.js
+                           │    judge model     → runner/src/judge.js   (assertions: runner/src/assertions.js)
+                           │  variance.js:  classify() + summarize()
+                           │  writes runs/{run_id}/verdict.json
+                           v
+                     web/server.mjs  (static Node server, no framework)
+                           │  reads verdict.json; fetches a raw case file
+                           │  from disk only when a human expands it
+                           v
+                     dashboard @ :4310
+```
+
+`compare` exits `2` when anything regressed, so path A is also how this gates a normal CI
+job on a machine that has the model keys — no TrueForge required for that part.
+
+**B — the agent, on TrueForge.** This is the one the hackathon is judging: the harness
+enforcing a real stop, not the model choosing to be careful.
+
+```
+GitHub (ORCHESTRA)                TrueForge harness — agent: sentinel
+ PR touches a prompt file   PR #    ┌──────────────────────────────────────────┐
+ ─────────────────────────────────> │ MCP: GitHub                              │
+                                     │  pull_request_read                       │
+                                     │  get_file_contents (base ref, head ref)  │
+                                     │  add_issue_comment           — free      │
+                                     │  merge_pull_request           ⛔ approval-gated
+                                     │  pull_request_review_write    ⛔ approval-gated
+                                     └───────────────────┬───────────────────────┘
+                                                          │ splits evals/suite.yaml cases
+                                                          │ into batches of 3–5, spawns
+                                                          │ one subagent per batch
+                                                          v
+                                     ┌──────────────────────────────────────────┐
+                                     │ Subagent, in a Daytona sandbox            │
+                                     │  writes + runs generated Python           │
+                                     │   (deterministic assertion checks)        │
+                                     │  calls subject + judge models             │
+                                     │  writes raw output →                      │
+                                     │   runs/{run_id}/{version}/{case_id}.json  │
+                                     │  scores per `sentinel-scoring` skill      │
+                                     │  returns only:                            │
+                                     │   {case_id, scores[], median, spread}     │
+                                     └───────────────────┬───────────────────────┘
+                                                          │ compact results, never raw
+                                                          │ model output — the
+                                                          │ orchestrator's context stays
+                                                          │ a scores table, not 90 replies
+                                                          v
+                              variance protocol (same rule as path A) → PR comment
+                                                          │
+                                             human says "merge it"
+                                                          v
+                                     merge_pull_request called → harness PAUSES
+                                     tool.approval_required — Allow / Deny
+                                                          │
+                                                    a person decides
+```
+
+`file_downloads: true` on the sandbox is what lets a TrueForge run's raw case files land in
+the same `runs/{run_id}/` layout path A writes, so the same dashboard reads either kind of
+run without knowing which produced it.
+
+### Why the sandbox is load-bearing, not decorative
+
+15 cases × 2 prompt versions × 3 repeats is 90 model responses. Sentinel follows the pattern
+TrueFoundry uses in their own agent: **the agent writes raw output to files and only reads
+back scored summaries.** The orchestrator never sees 90 raw replies — it sees a scores table.
+The sandbox also runs the deterministic assertions (§ eval design below) as real generated
+code, not a described check.
+
+### Why the gate is a harness property, not a model promise
+
+Two actions are irreversible: merging the PR, and posting an approving review (which, with
+auto-merge on, is the same thing). Both are registered as **approval-gated tools** on the
+agent — not enforced by an instruction telling it to be careful. The first version of this
+agent was told "do not merge," it agreed every time, and no approval event ever fired: a
+model refusing on its own initiative is not the same as the harness pausing, because a person
+never sees a checkpoint either way. Everything else — reading a PR, running evals, posting the
+comment — is unrestricted, because it's reversible and it's how the evidence gets delivered.
+
+### Evaluation design, in brief
+
+An eval case is an input plus a list of expectations, checked two ways:
+
+- **Assertions** (`runner/src/assertions.js`) — pure code, zero variance: valid JSON, required
+  keys present, score in range, forbidden strings absent. About half the suite is this kind on
+  purpose — format regressions are the most common real prompt regression, and an assertion
+  can't produce a false positive.
+- **Rubric scoring** (`runner/src/judge.js`) — a *different model family* than the subject
+  scores one output at a time, blind to which version produced it, against an explicit
+  criterion ("flags the missing demo video explicitly," not "is this good").
+
+Neither is trusted on a single run. Every case runs `N=3` times per version; the **noise
+floor** for a case is the spread already observed across its three runs on the unchanged base
+version. A case is only **regressed** when the median dropped *and* the drop clears that
+floor. A drop inside the floor is **inconclusive**, shown with its runs, never silently
+rounded up into a regression — see [What calibration found](#what-calibration-found) for the
+run where skipping this step would have made the *tests* the bug.
+
+### What TrueForge does vs what we wrote
+
+| Harness (TrueForge) | We wrote |
+|---|---|
+| GitHub MCP (read PR, read file at ref, comment, merge) | Eval cases, assertions, rubric judge, variance math |
+| Sandbox (generated Python, result files, `file_downloads`) | Local runner that calls the subject and judge models |
+| Approval gate on `merge_pull_request` and `pull_request_review_write` only | Dashboard that shows the diff a human can act on |
+| Dynamic subagents, one batch of cases each | `sentinel-scoring` skill (the noise-floor protocol) |
+| Sessions that survive a tab close | Calibration that proved the suite is stable |
+
+The default TrueForge gate is `["@write", "@destructive"]`. Posting a PR comment is a write,
+so that default would pause Sentinel *before* it reports. We gate two literal tool names and
+nothing else — comment stays free, merge and approving-review stay held.
+
+### Where this deviates from the original plan, on purpose
+
+The plan called for a Next.js app on both ends. What's built instead:
+
+- **Dashboard is a ~90-line static Node server** (`web/server.mjs`), not Next.js. The one
+  screen that carries the demo needs exactly three things from a server — a run index, a
+  verdict document, and a raw case file on demand — and a build step adds risk without adding
+  capability.
+- **Model calls run locally, not inside the sandbox.** TrueForge has no way to pass
+  environment variables into a sandbox, and an API key in a prompt persists in the session's
+  event history — not an option. The subject and judge are called by the local runner; the
+  sandbox still executes the generated assertion code for real and holds the result files that
+  never enter the agent's context.
+
+---
+
 ## Try it in five minutes
 
 Requires Node 22+ and an OpenAI and Anthropic API key.
@@ -99,22 +246,6 @@ product. Refusing to call the tool is not a gate.
 
 ---
 
-## What TrueForge does vs what we wrote
-
-| Harness | We wrote |
-|---|---|
-| GitHub MCP (read PR, read file at ref, comment, merge) | Eval cases, assertions, rubric judge, variance math |
-| Sandbox (generated Python, result files) | Local runner that calls the subject and judge models |
-| Approval on `merge_pull_request` and `pull_request_review_write` only | Dashboard that shows the diff a human can act on |
-| Dynamic subagents, one batch of cases each | `sentinel-scoring` skill (the noise-floor protocol) |
-| Sessions that survive a tab close | Calibration that proved the suite is stable |
-
-The default TrueForge gate is `["@write", "@destructive"]`. Posting a PR comment is a write,
-so that default would pause Sentinel *before* it reports. We gate two literal tool names and
-nothing else.
-
----
-
 ## Repository layout
 
 ```
@@ -137,17 +268,12 @@ web/         the run view (http://localhost:4310)
 
 ## Honest limitations
 
-**Model calls run locally, not in the sandbox.** TrueForge exposes no way to pass environment
-variables into a sandbox, and putting an API key in a prompt is not an option — it persists in
-the session's event history. The subject and judge are called by the local runner. The sandbox
-still executes generated assertion code and holds result files that never enter the agent's
-context.
+Two deliberate deviations from the original plan (local model calls, static dashboard) are
+covered in [Architecture](#architecture). Beyond those:
 
 **One repository, one prompt.** The suite targets ORCHESTRA's clarity judge.
 
 **Pairwise preference scoring is not built.**
-
-**The dashboard is a static server**, not a Next.js app. One screen carries the demo.
 
 **Nothing detects score-band drift on `clarity-score-calibration`.** Unstable rubric criteria
 were deleted rather than left failing. The gap is in the case file.
